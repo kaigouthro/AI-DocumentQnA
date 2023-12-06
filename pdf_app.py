@@ -1,6 +1,6 @@
 # Import necessary modules
 import pandas as pd
-import streamlit as st 
+import streamlit as st
 from PIL import Image
 from PyPDF2 import PdfReader
 
@@ -22,9 +22,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
     )
 
-# OPENAI_API_KEY = st.secrets["OPENAI_API_KEY"]
+
+keycheck = st.sidebar.text_input("Enter Your OpenAI API Key:", type="password")
+if st.secrets.password == keycheck:
+    OPENAI_API_KEY = st.secrets.key
+else:
+    OPENAI_API_KEY = keycheck
+
 st.sidebar.subheader("Setup")
-OPENAI_API_KEY = st.sidebar.text_input("Enter Your OpenAI API Key:", type="password")
 st.sidebar.markdown("Get your OpenAI API key [here](https://platform.openai.com/account/api-keys)")
 st.sidebar.divider()
 st.sidebar.subheader("Model Selection")
@@ -36,76 +41,10 @@ st.sidebar.markdown("""\n""")
 clear_history = st.sidebar.button("Clear conversation history")
 
 
-with st.sidebar:
-    st.divider()
-    st.subheader("Considerations:", anchor=False)
-    st.info(
-        """
-        - Currently only supports PDFs. Include support for .doc, .docx, .csv & .xls files 
-
-        """)
-
-    st.subheader("Updates Required:", anchor=False)
-    st.warning("""
-        1. Support for multiple PDFs.
-        
-        2. Use Langchain PDF loader and higher quality vector store for document parsing + reduce inefficient handling.
-        
-        3. Improve contextual question-answering by developing Prompt Templates - Tendency to hallucinate.
-    
-        """
-        )
-
-    st.divider()
-
-with st.sidebar:
-    st.subheader("👨‍💻 Author: **Yaksh Birla**", anchor=False)
-    
-    st.subheader("🔗 Contact / Connect:", anchor=False)
-    st.markdown(
-        """
-        - [Email](mailto:yb.codes@gmail.com)
-        - [LinkedIn](https://www.linkedin.com/in/yakshb/)
-        - [Github Profile](https://github.com/yakshb)
-        - [Medium](https://medium.com/@yakshb)
-        """
-    )
-
-    st.divider()
-    st.write("Made with 🦜️🔗 Langchain and OpenAI LLMs")
-
 if "conversation" not in st.session_state:
     st.session_state.conversation = None
 
-st.markdown(f"""## AI-Assisted Document Analysis 📑 <span style=color:#2E9BF5><font size=5>Beta</font></span>""",unsafe_allow_html=True)
-st.write("_A tool built for AI-Powered Research Assistance or Querying Documents for Quick Information Retrieval_")
 
-with st.expander("❔How does the report analysis work?"):
-    st.info("""
-    These processes are powered by robust and sophisticated technologies like OpenAI’s Large Language Models, Sentence Transformer, FAISS, and Streamlit, ensuring a reliable and user-friendly experience for users to gain quick insights from their documents.
-
-    1. **Document Upload and Processing**: The tool reads and extracts text from these documents, creating a foundational base of information. During this phase, the documents are also processed into manageable pieces to prepare them for subsequent analysis and querying.
-    
-    2. **Data Transformation and Indexing**: HuggingFace Sentence Transformers convert textual data into numerical vectors. Post-transformation, the data is organized and indexed in a vector database using Meta's FAISS, which is renowned for its efficient search capabilities.
-    
-    3. **Conversational AI**: Using OpenAI's ChatOpenAI model to generate responses, the system retrieves answers based on the information extracted from the uploaded documents while maintaining contextual accuracy.
-    
-    4. **Query Handling and Response Generation**: Each user query is meticulously managed and processed within the tool. The tool ensures a smooth interaction and generates accurate responses based on the ongoing conversation and the available data.
-    
-    The overarching objective is to enable users to query lengthy documents or reports to expedite comprehensive research.
-
-    """, icon="ℹ️")
-
-with st.expander("⚠️ Privacy and Terms of Use"):
-    st.info("""
-        **Privacy**: We value and respect your privacy. To safeguard your personal details, we utilize the hashed value of your OpenAI API Key, ensuring utmost confidentiality and anonymity. Your API key facilitates AI-driven features during your session and is never retained post-visit. You can confidently fine-tune your research, assured that your information remains protected and private.
-
-        **Terms of Use**: By using this service, users are required to agree to the following terms: The service is a research preview intended for non-commercial use only. 
-        It only provides limited safety measures and may generate offensive content. It must not be used for any illegal, harmful, violent, racist, or sexual purposes. 
-        The service may collect user dialogue data for future research. For an optimal experience, please use desktop computers for this demo, as mobile devices may compromise its quality.
-
-        **License**: The service is a research preview intended for non-commercial use only, subject to the model [License](https://huggingface.co/docs/hub/sentence-transformers) HuggingFace embedding models, [Terms of Use](https://openai.com/policies/terms-of-use) of the data generated by OpenAI and Privacy Practices of Langchain. Please contact us if you find any violations.
-        """, icon="ℹ️")
 
 # Extracts and concatenates text from a list of PDF documents
 def get_pdf_text(pdf_docs):
@@ -125,7 +64,6 @@ def get_pdf_text(pdf_docs):
                 print(f"Failed to extract text from a page in {pdf}")
 
     return text
-
 # Splits a given text into smaller chunks based on specified conditions
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
@@ -136,6 +74,17 @@ def get_text_chunks(text):
     )
     chunks = text_splitter.split_text(text)
     return chunks
+
+
+def get_markdown_text(markdown_docs):
+    # Load Markdown documents
+    DOCUMENTS = []
+    TEXT_SPLITTER = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
+    for file in markdown_docs:
+        loader = UnstructuredMarkdownLoader(file)
+        docs = loader.load_and_split(text_splitter=TEXT_SPLITTER)
+        DOCUMENTS.extend(docs)
+    return DOCUMENTS
 
 
 # Generates embeddings for given text chunks and creates a vector store using FAISS
@@ -163,19 +112,19 @@ if user_uploads is not None:
     if st.button("Upload"):
         with st.spinner("Processing"):
             # Get PDF Text
-            raw_text = get_pdf_text(user_uploads)
+            raw_text = get_markdown_text(user_uploads)
             # st.write(raw_text)
 
             # Retrieve chunks from text
             text_chunks = get_text_chunks(raw_text)
-            ## st.write(text_chunks)  
+            ## st.write(text_chunks)
 
             # Create FAISS Vector Store of PDF Docs
             vectorstore = get_vectorstore(text_chunks)
 
             # Create conversation chain
             st.session_state.conversation = get_conversation_chain(vectorstore)
-            
+
 
 
 # Initialize chat history in session state for Document Analysis (doc) if not present
@@ -210,7 +159,7 @@ if user_query := st.chat_input("Enter your query here"):
             ]
             # Process the user's message using the conversation chain
             result = st.session_state.conversation({
-                "question": user_query, 
+                "question": user_query,
                 "chat_history": st.session_state['chat_history']})
             response = result["answer"]
             # Append the user's question and AI's answer to chat_history
@@ -220,10 +169,9 @@ if user_query := st.chat_input("Enter your query here"):
             })
         else:
             response = "Please upload a document first to initialize the conversation chain."
-        
+
         # Display AI's response in chat format
         with st.chat_message("assistant"):
             st.write(response)
         # Add AI's response to doc_messages for displaying in UI
         st.session_state['doc_messages'].append({"role": "assistant", "content": response})
-
