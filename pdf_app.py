@@ -1,6 +1,6 @@
 # Import necessary modules
 import pandas as pd
-import streamlit as st 
+import streamlit as st
 from PIL import Image
 from PyPDF2 import PdfReader
 
@@ -60,7 +60,7 @@ with st.sidebar:
 
 with st.sidebar:
     st.subheader("👨‍💻 Author: **Yaksh Birla**", anchor=False)
-    
+
     st.subheader("🔗 Contact / Connect:", anchor=False)
     st.markdown(
         """
@@ -77,7 +77,10 @@ with st.sidebar:
 if "conversation" not in st.session_state:
     st.session_state.conversation = None
 
-st.markdown(f"""## AI-Assisted Document Analysis 📑 <span style=color:#2E9BF5><font size=5>Beta</font></span>""",unsafe_allow_html=True)
+st.markdown(
+    """## AI-Assisted Document Analysis 📑 <span style=color:#2E9BF5><font size=5>Beta</font></span>""",
+    unsafe_allow_html=True,
+)
 st.write("_A tool built for AI-Powered Research Assistance or Querying Documents for Quick Information Retrieval_")
 
 with st.expander("❔How does the report analysis work?"):
@@ -118,8 +121,7 @@ def get_pdf_text(pdf_docs):
             continue  # skip to next pdf document in case of read error
 
         for page in pdf_reader.pages:
-            page_text = page.extract_text()
-            if page_text:  # checking if page_text is not None or empty string
+            if page_text := page.extract_text():
                 text += page_text
             else:
                 print(f"Failed to extract text from a page in {pdf}")
@@ -134,27 +136,24 @@ def get_text_chunks(text):
         chunk_overlap=200,
         length_function=len
     )
-    chunks = text_splitter.split_text(text)
-    return chunks
+    return text_splitter.split_text(text)
 
 
 # Generates embeddings for given text chunks and creates a vector store using FAISS
 def get_vectorstore(text_chunks):
     # embeddings = OpenAIEmbeddings()
     embeddings = SentenceTransformerEmbeddings(model_name='all-MiniLM-L6-v2')
-    vectorstore = FAISS.from_texts(texts=text_chunks, embedding=embeddings)
-    return vectorstore
+    return FAISS.from_texts(texts=text_chunks, embedding=embeddings)
 
 # Initializes a conversation chain with a given vector store
 def get_conversation_chain(vectorstore):
     memory = ConversationBufferWindowMemory(memory_key='chat_history', return_message=True)
-    conversation_chain = ConversationalRetrievalChain.from_llm(
+    return ConversationalRetrievalChain.from_llm(
         llm=ChatOpenAI(temperature=temperature_input, model_name=model_select),
         retriever=vectorstore.as_retriever(),
-        get_chat_history=lambda h : h,
-        memory=memory
+        get_chat_history=lambda h: h,
+        memory=memory,
     )
-    return conversation_chain
 
 
 # Upload file to Streamlit app for querying
