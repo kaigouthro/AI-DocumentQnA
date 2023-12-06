@@ -14,6 +14,9 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 
 home_privacy = "We value and respect your privacy. To safeguard your personal details, we utilize the hashed value of your OpenAI API Key, ensuring utmost confidentiality and anonymity. Your API key facilitates AI-driven features during your session and is never retained post-visit. You can confidently fine-tune your research, assured that your information remains protected and private."
 
+
+HEADER = st.empty()
+
 # Page configuration for Simple PDF App
 st.set_page_config(
     page_title="Document Q&A with AI",
@@ -46,24 +49,6 @@ if "conversation" not in st.session_state:
 
 
 
-# Extracts and concatenates text from a list of PDF documents
-def get_pdf_text(pdf_docs):
-    text = ""
-    for pdf in pdf_docs:
-        try:
-            pdf_reader = PdfReader(pdf)
-        except (PdfReader.PdfReadError, PyPDF2.utils.PdfReadError) as e:
-            print(f"Failed to read {pdf}: {e}")
-            continue  # skip to next pdf document in case of read error
-
-        for page in pdf_reader.pages:
-            page_text = page.extract_text()
-            if page_text:  # checking if page_text is not None or empty string
-                text += page_text
-            else:
-                print(f"Failed to extract text from a page in {pdf}")
-
-    return text
 # Splits a given text into smaller chunks based on specified conditions
 def get_text_chunks(text):
     text_splitter = RecursiveCharacterTextSplitter(
@@ -79,11 +64,18 @@ def get_text_chunks(text):
 def get_markdown_text(markdown_docs):
     # Load Markdown documents
     DOCUMENTS = []
-    TEXT_SPLITTER = MarkdownTextSplitter(chunk_size=1000, chunk_overlap=0)
+    TEXT_SPLITTER = MarkdownTextSplitter(chunk_size=355, chunk_overlap=20)
+    localprog = HEADER.progress(0.0, "Loading Markdown Documents")
+    size = len(markdown_docs)
+    i = 0.0
     for file in markdown_docs:
+        i += 1/size
+        localprog.progress(i)
         loader = UnstructuredMarkdownLoader(file)
         docs = loader.load_and_split(text_splitter=TEXT_SPLITTER)
         DOCUMENTS.extend(docs)
+    localprog.progress(1.0)
+    HEADER.empty()
     return DOCUMENTS
 
 
@@ -111,13 +103,7 @@ user_uploads = st.file_uploader("Upload your files", accept_multiple_files=True)
 if user_uploads is not None:
     if st.button("Upload"):
         with st.spinner("Processing"):
-            # Get PDF Text
-            raw_text = get_markdown_text(user_uploads)
-            # st.write(raw_text)
-
-            # Retrieve chunks from text
-            text_chunks = get_text_chunks(raw_text)
-            ## st.write(text_chunks)
+            text_chunks =  get_markdown_text(user_uploads)
 
             # Create FAISS Vector Store of PDF Docs
             vectorstore = get_vectorstore(text_chunks)
