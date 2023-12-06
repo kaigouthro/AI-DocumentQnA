@@ -17,13 +17,7 @@ home_privacy = "We value and respect your privacy. To safeguard your personal de
 
 HEADER = st.empty()
 
-# Page configuration for Simple PDF App
-st.set_page_config(
-    page_title="Document Q&A with AI",
-    page_icon="🧊",
-    layout="wide",
-    initial_sidebar_state="expanded"
-    )
+
 
 
 keycheck = st.sidebar.text_input("Enter Your OpenAI API Key:", type="password")
