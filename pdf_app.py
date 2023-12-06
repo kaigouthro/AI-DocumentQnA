@@ -14,6 +14,89 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter, MarkdownText
 
 home_privacy = "We value and respect your privacy. To safeguard your personal details, we utilize the hashed value of your OpenAI API Key, ensuring utmost confidentiality and anonymity. Your API key facilitates AI-driven features during your session and is never retained post-visit. You can confidently fine-tune your research, assured that your information remains protected and private."
 
+import contextlib
+import logging
+import subprocess
+import sys
+import time
+
+import tqdm
+
+# Unix, Windows and old Macintosh end-of-line
+NEWLINES = ["\n", "\r\n", "\r"]
+
+
+def unbuffered(proc, stream="stdout"):
+    stream = getattr(proc, stream)
+    with contextlib.closing(stream):
+        while True:
+            out = []
+            last = stream.read(1)
+            # Don't loop forever
+            if last == "" and proc.poll() is not None:
+                break
+            while last not in NEWLINES:
+                # Don't loop forever
+                if last == "" and proc.poll() is not None:
+                    break
+                out.append(last)
+                last = stream.read(1)
+            out = "".join(out)
+            yield out
+
+
+def example():
+    pass
+
+
+def mod_install(args):
+    """check if pip has submodules for progress bar iteration, get total of submodules to install that are not already
+    instaled ( the count that will be installed ) for range, then update bar.. this would have to be done on each module
+    """
+    with subprocess.Popen(
+        args, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, universal_newlines=True
+    ) as p:
+        for line in unbuffered(p):
+            print(line)
+
+
+def install_modules(modules, reinstall=False, update=False):
+    """
+    Install modules in the current interpreter.
+    :param modules: An iterable of modules to install, e.g. ['torch', 'fastai']
+    :param reinstall: Whether to reinstall already installed modules.
+    :param update: Whether to update already installed modules.
+    """
+    progress_bar = tqdm.tqdm(total=len(modules), leave=False, desc="Installing pip modules")
+
+    with progress_bar:
+        for module in modules:
+            """create unique bar for each module in modules list"""
+            try:
+                if not reinstall and not update and module in sys.modules:
+                    print(f"{module} is already installed")
+                    continue
+                args = [sys.executable, "-m", "pip", "install"]
+                if reinstall:
+                    args.append("--force-reinstall")
+                if update:
+                    args.append("--upgrade")
+                args.append(module)
+                mod_install(args)
+                time.sleep(1)
+            except subprocess.CalledProcessError:
+                logging.exception("Error installing {}", module)
+            except KeyboardInterrupt:
+                logging.exception("Interrupted, removing {}", module)
+                subprocess.check_call([sys.executable, "-m", "pip", "uninstall", "-y", module])
+            else:
+                # optional additional callback function
+                # this will install dependencies
+                sys.stdout.write("\r")
+                sys.stdout.flush()
+
+
+install_modules(["markdown"])
 
 HEADER = st.empty()
 
